@@ -60,9 +60,8 @@ export default function Home() {
             Crear perfil gratis
             <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
           </a>
-          <button className="text-slate-400 text-sm font-medium hover:text-white transition-colors flex items-center gap-1.5 px-4 py-4">
-            Ver ejemplo <ChevronRight size={14} />
-          </button>
+        
+    
         </div>
 
         {/* Tarjeta de ejemplo */}

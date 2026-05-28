@@ -4,11 +4,11 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   User, Briefcase, Award, Zap, LogOut, Trash2, Plus, Save,
-  Menu, X, Upload, Eye, QrCode, Globe,
-  Phone, Mail, Calendar, ChevronDown, ExternalLink, Copy, Check, Download
+  Menu, X, Upload, Eye, Globe,
+  Phone, Mail, Calendar, ChevronDown, ExternalLink, Copy, Check, Download,
+  QrCode
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-
 
 // SVG de GitHub — funciona en cualquier versión
 const GithubIcon = ({ size = 16, className = '' }) => (
@@ -23,6 +23,7 @@ const LinkedinIcon = ({ size = 16, className = '' }) => (
     <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
   </svg>
 );
+
 
 // ── Ladas por país (las más comunes) ──────────────────────────────────────
 const COUNTRY_CODES = [
@@ -177,11 +178,36 @@ export default function Dashboard() {
     setTimeout(() => setCopied(false), 2500);
   };
 
+  // ── Generar slug a partir del nombre ────────────────────────────────────
+  const generateSlug = (name: string) => {
+    return name
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quita acentos
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-');
+  };
+
   // ── Guardar personal ─────────────────────────────────────────────────────
   const handleSavePersonal = async () => {
     if (!userId) return;
+    if (!personal.fullName.trim()) {
+      alert('Por favor escribe tu nombre completo antes de guardar.');
+      return;
+    }
     setSaving(true);
-    await supabase.from('profiles').upsert({
+
+    // Generar slug si no existe todavía
+    let slug = userSlug;
+    if (!slug && personal.fullName.trim()) {
+      const base = generateSlug(personal.fullName);
+      // Verificar que no exista ese slug en la base de datos
+      const { data: existing } = await supabase
+        .from('profiles').select('slug').eq('slug', base).maybeSingle();
+      slug = existing ? `${base}-${userId.slice(0, 4)}` : base;
+    }
+
+    const { error } = await supabase.from('profiles').upsert({
       id:                 userId,
       full_name:          personal.fullName,
       title:              personal.title,
@@ -193,8 +219,17 @@ export default function Dashboard() {
       github:             personal.github,
       other_social_label: personal.otherSocialLabel,
       other_social_url:   personal.otherSocialUrl,
+      slug,
     });
-    showSaved();
+
+    if (error) {
+      setSaving(false);
+      alert(`Error al guardar: ${error.message}`);
+      return;
+    }
+
+    if (slug) setUserSlug(slug);
+    showSaved('¡Perfil guardado! ✓');
   };
 
   // ── Experiencia ──────────────────────────────────────────────────────────
@@ -415,11 +450,6 @@ export default function Dashboard() {
                 <h2 className="text-2xl font-black text-slate-900">
                   {tabs.find(t => t.id === activeTab)?.label}
                 </h2>
-                {savedMsg && (
-                  <span className="text-emerald-600 text-sm font-semibold bg-emerald-50 px-4 py-2 rounded-full">
-                    {savedMsg}
-                  </span>
-                )}
               </div>
 
               {/* ══ PERSONAL ══════════════════════════════════════════════════ */}
@@ -516,13 +546,26 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={handleSavePersonal}
-                    disabled={saving}
-                    className="bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-white px-8 py-3.5 rounded-xl font-bold flex items-center gap-2 transition shadow-lg shadow-emerald-500/20"
-                  >
-                    <Save size={18} /> {saving ? 'Guardando...' : 'Guardar datos'}
-                  </button>
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <button
+                      onClick={handleSavePersonal}
+                      disabled={saving}
+                      className={`flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold transition shadow-lg
+                        ${saving
+                          ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+                          : 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-emerald-500/20'}`}
+                    >
+                      <Save size={18} /> {saving ? 'Guardando...' : 'Guardar datos'}
+                    </button>
+                    {savedMsg && (
+                      <motion.span
+                        initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
+                        className="text-emerald-600 font-semibold text-sm bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-full"
+                      >
+                        {savedMsg}
+                      </motion.span>
+                    )}
+                  </div>
                 </div>
               )}
 
