@@ -4,11 +4,11 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   User, Briefcase, Award, Zap, LogOut, Trash2, Plus, Save,
-  Menu, X, Upload, Eye, Globe,
-  Phone, Mail, Calendar, ChevronDown, ExternalLink, Copy, Check, Download,
-  QrCode
+  Menu, X, Upload, Eye, QrCode,Globe,
+  Phone, Mail, Calendar, ChevronDown, ExternalLink, Copy, Check, Download
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+
 
 // SVG de GitHub — funciona en cualquier versión
 const GithubIcon = ({ size = 16, className = '' }) => (
@@ -23,7 +23,6 @@ const LinkedinIcon = ({ size = 16, className = '' }) => (
     <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
   </svg>
 );
-
 
 // ── Ladas por país (las más comunes) ──────────────────────────────────────
 const COUNTRY_CODES = [
@@ -97,6 +96,12 @@ export default function Dashboard() {
   const [uploadingCert, setUploadingCert] = useState(false);
   const certInputRef = useRef<HTMLInputElement>(null);
 
+  // ── Avatar ──────────────────────────────────────────────────────────────
+  const [avatarUrl, setAvatarUrl]         = useState<string>('');
+  const [avatarPreview, setAvatarPreview] = useState<string>('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
   // ── Skills ──────────────────────────────────────────────────────────────
   const [skills, setSkills]           = useState<any[]>([]);
   const [skillName, setSkillName]     = useState('');
@@ -129,6 +134,7 @@ export default function Dashboard() {
         otherSocialUrl:   p.other_social_url   || '',
       });
       setUserSlug(p.slug || '');
+      if (p.avatar_url) { setAvatarUrl(p.avatar_url); setAvatarPreview(p.avatar_url); }
     }
     const [expRes, certRes, skillsRes] = await Promise.all([
       supabase.from('experiences').select('*').eq('user_id', id).order('start_year', { ascending: false }),
@@ -176,6 +182,34 @@ export default function Dashboard() {
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  // ── Subir avatar ─────────────────────────────────────────────────────────
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+
+    // Preview inmediato antes de subir
+    const reader = new FileReader();
+    reader.onload = ev => setAvatarPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+
+    setUploadingAvatar(true);
+    const ext  = file.name.split('.').pop();
+    const path = `${userId}/avatar.${ext}`;
+
+    const { error: upErr } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, { upsert: true });
+
+    if (upErr) { setUploadingAvatar(false); alert('Error al subir la foto'); return; }
+
+    const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+    const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+    await supabase.from('profiles').upsert({ id: userId, avatar_url: publicUrl });
+    setAvatarUrl(publicUrl);
+    setUploadingAvatar(false);
   };
 
   // ── Generar slug a partir del nombre ────────────────────────────────────
@@ -455,6 +489,44 @@ export default function Dashboard() {
               {/* ══ PERSONAL ══════════════════════════════════════════════════ */}
               {activeTab === 'personal' && (
                 <div className="space-y-6">
+
+                  {/* ── Foto de perfil ── */}
+                  <div>
+                    <label className={labelClass}>Foto de perfil</label>
+                    <div className="flex items-center gap-5">
+                      {/* Preview */}
+                      <div className="w-24 h-24 rounded-full border-4 border-slate-200 overflow-hidden bg-slate-100 flex items-center justify-center flex-shrink-0 relative">
+                        {avatarPreview
+                          ? <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                          : <User size={32} className="text-slate-300" />}
+                        {uploadingAvatar && (
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-full">
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          </div>
+                        )}
+                      </div>
+                      {/* Botón seleccionar */}
+                      <div className="flex flex-col gap-2">
+                        <label className="cursor-pointer flex items-center gap-2 bg-slate-900 hover:bg-slate-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition">
+                          <Upload size={15} />
+                          {uploadingAvatar ? 'Subiendo...' : 'Elegir foto'}
+                          <input
+                            ref={avatarInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleAvatarChange}
+                            disabled={uploadingAvatar}
+                          />
+                        </label>
+                        <p className="text-xs text-slate-400">JPG, PNG o WEBP · máx 5 MB</p>
+                        {avatarUrl && !uploadingAvatar && (
+                          <p className="text-xs text-emerald-600 font-semibold">✓ Foto guardada</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className={labelClass}>Nombre completo</label>
