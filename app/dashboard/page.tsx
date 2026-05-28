@@ -5,9 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   User, Briefcase, Award, Zap, LogOut, Trash2, Plus, Save,
   Menu, X, Upload, Eye, QrCode, Globe,
-  Phone, Mail, Calendar, ChevronDown, ExternalLink
+  Phone, Mail, Calendar, ChevronDown, ExternalLink, Copy, Check, Download
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+
 
 // SVG de GitHub — funciona en cualquier versión
 const GithubIcon = ({ size = 16, className = '' }) => (
@@ -22,6 +23,7 @@ const LinkedinIcon = ({ size = 16, className = '' }) => (
     <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
   </svg>
 );
+
 // ── Ladas por país (las más comunes) ──────────────────────────────────────
 const COUNTRY_CODES = [
   { code: '+52', country: 'México 🇲🇽' },
@@ -68,6 +70,10 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [saving, setSaving]         = useState(false);
   const [savedMsg, setSavedMsg]     = useState('');
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [qrDataUrl, setQrDataUrl]     = useState('');
+  const [copied, setCopied]           = useState(false);
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // ── Personal ────────────────────────────────────────────────────────────
   const [personal, setPersonal] = useState({
@@ -138,6 +144,37 @@ export default function Dashboard() {
   const showSaved = (msg = '¡Guardado!') => {
     setSavedMsg(msg); setSaving(false);
     setTimeout(() => setSavedMsg(''), 2500);
+  };
+
+  // ── Generar QR ───────────────────────────────────────────────────────────
+  const handleOpenQr = async () => {
+    if (!userSlug) return;
+    const url = `${window.location.origin}/${userSlug}`;
+    // Carga qrcode dinámicamente para no requerir instalación previa
+    const QRCode = (await import('qrcode')).default;
+    const dataUrl = await QRCode.toDataURL(url, {
+      width: 400,
+      margin: 2,
+      color: { dark: '#0f172a', light: '#ffffff' },
+    });
+    setQrDataUrl(dataUrl);
+    setShowQrModal(true);
+  };
+
+  const handleDownloadQr = () => {
+    if (!qrDataUrl) return;
+    const a = document.createElement('a');
+    a.href = qrDataUrl;
+    a.download = `qr-${userSlug}.png`;
+    a.click();
+  };
+
+  const handleCopyLink = () => {
+    if (!userSlug) return;
+    const url = `${window.location.origin}/${userSlug}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
   };
 
   // ── Guardar personal ─────────────────────────────────────────────────────
@@ -263,6 +300,7 @@ export default function Dashboard() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
+    <>
     <div className="flex h-screen bg-slate-100 text-gray-900 overflow-hidden">
 
       {/* ── SIDEBAR ── */}
@@ -306,10 +344,11 @@ export default function Dashboard() {
           ))}
         </nav>
 
-        {/* QR + Ver perfil + Logout */}
+        {/* Acciones + Logout */}
         <div className="p-4 border-t border-slate-800 space-y-2">
           {userSlug && (
             <>
+              {/* Ver perfil */}
               <a
                 href={`/${userSlug}`}
                 target="_blank"
@@ -318,14 +357,27 @@ export default function Dashboard() {
               >
                 <Eye size={16} className="text-emerald-400" /> Ver mi perfil
               </a>
-              <a
-                href={`/${userSlug}?qr=1`}
-                target="_blank"
-                rel="noreferrer"
+
+              {/* Generar QR — abre modal */}
+              <button
+                onClick={handleOpenQr}
                 className="flex items-center gap-2 w-full p-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-sm text-white font-semibold transition"
               >
                 <QrCode size={16} /> Generar QR
-              </a>
+              </button>
+
+              {/* Copiar link */}
+              <button
+                onClick={handleCopyLink}
+                className={`flex items-center gap-2 w-full p-3 rounded-xl text-sm font-semibold transition
+                  ${copied
+                    ? 'bg-emerald-900/40 text-emerald-400'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'}`}
+              >
+                {copied
+                  ? <><Check size={16} className="text-emerald-400" /> ¡Link copiado!</>
+                  : <><Copy size={16} className="text-slate-400" /> Copiar mi link</>}
+              </button>
             </>
           )}
           <button
@@ -700,5 +752,70 @@ export default function Dashboard() {
         </main>
       </div>
     </div>
+
+      {/* ── MODAL QR ── */}
+      <AnimatePresence>
+        {showQrModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowQrModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.85, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center"
+              onClick={e => e.stopPropagation()}
+            >
+              <h3 className="text-2xl font-black text-slate-900 mb-1">Tu código QR</h3>
+              <p className="text-slate-400 text-sm mb-6">
+                Escanéalo para ver tu perfil o descárgalo para imprimirlo
+              </p>
+
+              {qrDataUrl && (
+                <div className="flex justify-center mb-6">
+                  <img
+                    src={qrDataUrl}
+                    alt="QR de perfil"
+                    className="w-56 h-56 rounded-2xl border-4 border-slate-100 shadow-md"
+                  />
+                </div>
+              )}
+
+              {/* Link debajo del QR */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-6 text-sm text-slate-500 font-mono break-all">
+                {typeof window !== 'undefined' ? `${window.location.origin}/${userSlug}` : ''}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={handleDownloadQr}
+                  className="flex items-center justify-center gap-2 w-full bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-3 rounded-xl transition"
+                >
+                  <Download size={18} /> Descargar PNG
+                </button>
+                <button
+                  onClick={() => { handleCopyLink(); }}
+                  className={`flex items-center justify-center gap-2 w-full font-bold py-3 rounded-xl transition
+                    ${copied
+                      ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
+                >
+                  {copied
+                    ? <><Check size={18} /> ¡Copiado!</>
+                    : <><Copy size={18} /> Copiar link</>}
+                </button>
+                <button
+                  onClick={() => setShowQrModal(false)}
+                  className="text-slate-400 hover:text-slate-600 text-sm py-2 transition"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
