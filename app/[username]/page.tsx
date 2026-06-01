@@ -63,7 +63,7 @@ export default function PublicProfile({ params }: { params: Promise<{ username: 
   const fullPhone = profile.phone ? `${profile.country_code || ''}${profile.phone}`.replace(/\s+/g, '') : null;
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-20">
+   <div className="min-h-screen bg-slate-50 font-sans">
       {isOwner && (
         <div className="fixed top-4 left-4 z-50">
           <button onClick={() => router.push('/dashboard')} className="flex items-center gap-2 bg-white hover:bg-slate-100 text-slate-700 font-semibold text-sm px-4 py-2.5 rounded-full shadow-lg border border-slate-200 transition">
@@ -193,8 +193,8 @@ export default function PublicProfile({ params }: { params: Promise<{ username: 
           <motion.div variants={fadeIn} initial="hidden" animate="visible"
             className="bg-slate-900 p-6 md:p-8 rounded-3xl border border-slate-800">
             <p className="text-emerald-500 text-xs font-bold uppercase tracking-widest mb-1">Mensaje rápido</p>
-            <h2 className="text-2xl font-black text-white mb-2">Escribeme un mensaje</h2>
-            <p className="text-slate-400 text-sm mb-6">Llena los campos y se abrirá WhatsApp con un mensaje listo para enviar.</p>
+            <h2 className="text-2xl font-black text-white mb-2">Escribame un mensaje</h2>
+            <p className="text-slate-400 text-sm mb-6">Llene los campos y se abrirá WhatsApp con un mensaje listo para enviar.</p>
 
             <div className="space-y-4">
               <div>
@@ -210,7 +210,7 @@ export default function PublicProfile({ params }: { params: Promise<{ username: 
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Asunto</label>
                 <input
                   className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500 transition"
-                  placeholder="Ej. Desarrollo de API, portafolio, landing page..."
+                  placeholder="Ej. Proyecto, asesoria, consulta..."
                   value={waForm.subject}
                   onChange={e => setWaForm({ ...waForm, subject: e.target.value })}
                 />
@@ -220,7 +220,7 @@ export default function PublicProfile({ params }: { params: Promise<{ username: 
                 <textarea
                   rows={4}
                   className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500 transition resize-none"
-                  placeholder="Cuéntame brevemente qué necesitas..."
+                  placeholder="Especifique su consulta o proyecto..."
                   value={waForm.message}
                   onChange={e => setWaForm({ ...waForm, message: e.target.value })}
                 />
@@ -244,6 +244,18 @@ export default function PublicProfile({ params }: { params: Promise<{ username: 
         )}
 
       </main>
+
+      <div className="mt-6 flex justify-center">
+  <button 
+    onClick={() => router.push('/')} // O la ruta donde esté tu formulario de perfil
+    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-all transform hover:scale-105 active:scale-95"
+  >
+    Crea tu CV aquí
+  </button>
+</div>
+
+
+
 
       {/* FOOTER */}
       <footer className="mt-16 bg-slate-900 text-white">
@@ -332,7 +344,6 @@ export default function PublicProfile({ params }: { params: Promise<{ username: 
           </div>
         </div>
       </footer>
-
     </div>
   );
 }
